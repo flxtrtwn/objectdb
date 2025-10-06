@@ -1,0 +1,9 @@
+.mypy_cache
+.pytest_cache
+__pycache__
+.coverage
+*.py,cover
+dist/**
+
+.venv
+*.env

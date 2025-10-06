@@ -1,0 +1,71 @@
+{
+  "workbench.tree.indent": 16,
+  "workbench.list.horizontalScrolling": true,
+  "explorer.excludeGitIgnore": true,
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "files.trimTrailingWhitespace": true,
+  "files.autoSave": "onFocusChange",
+  "editor.codeLens": true,
+  "editor.detectIndentation": false,
+  "editor.formatOnSave": true,
+  "editor.insertSpaces": true,
+  "editor.parameterHints.enabled": true,
+  "editor.tabSize": 4,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+  "editor.tabCompletion": "on",
+  "editor.autoClosingBrackets": "beforeWhitespace",
+  "editor.multiCursorModifier": "ctrlCmd",
+  "editor.autoClosingDelete": "always",
+  "editor.autoClosingOvertype": "always",
+  "editor.autoClosingQuotes": "beforeWhitespace",
+  "editor.autoSurround": "quotes",
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "explicit"
+  },
+  "editor.fastScrollSensitivity": 2,
+  "editor.hover.delay": 200,
+  "editor.linkedEditing": true,
+  "editor.scrollBeyondLastLine": false,
+  "editor.smoothScrolling": false,
+  "editor.stickyTabStops": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "terminal.integrated.detectLocale": "on",
+  "terminal.integrated.localEchoEnabled": "off",
+  "terminal.integrated.scrollback": 100000,
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "[python]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+      "source.organizeImports": "explicit"
+    }
+  },
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python",
+  "python.terminal.activateEnvironment": true,
+  "python.analysis.indexing": true,
+  "python.analysis.inlayHints.functionReturnTypes": true,
+  "python.analysis.typeCheckingMode": "strict",
+  "git.ignoreLimitWarning": true,
+  "gitlens.advanced.fileHistoryFollowsRenames": true,
+  "[restructuredtext]": {
+    "editor.tabSize": 4
+  },
+  "pylint.interpreter": ["${workspaceFolder}/.venv/bin/python"],
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.autoFormatStrings": true,
+  "pylint.importStrategy": "fromEnvironment",
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/.venv/lib/python3.13/site-packages"
+  ],
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportUnknownArgumentType": "none",
+    "reportUnknownParameterType": "none",
+    "reportMissingTypeArgument": "none"
+  }
+}
