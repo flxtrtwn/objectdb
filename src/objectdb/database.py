@@ -5,6 +5,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Generic, Optional, Type, TypeVar
 
+import fastapi
 import pydantic
 from bson.objectid import ObjectId
 from pydantic_core import core_schema
@@ -86,6 +87,24 @@ class PyObjectId(ObjectId):
         return cls(v)
 
 
+class DatabaseItem(ABC, pydantic.BaseModel):
+    """Base class for database items."""
+
+    model_config = pydantic.ConfigDict(revalidate_instances="always", populate_by_name=True)
+    identifier: PyObjectId = pydantic.Field(default_factory=PyObjectId, alias="_id")
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, DatabaseItem):
+            return NotImplemented
+        return self.identifier == other.identifier
+
+    def __hash__(self) -> int:
+        return hash(self.identifier)
+
+
+router = fastapi.APIRouter()
+
+
 class Database(ABC):
     """Database abstraction."""
 
@@ -113,20 +132,35 @@ class Database(ABC):
     async def find_one(self, class_type: Type[T], **kwargs: str) -> Optional[T]:
         """Return one entitiy of collection matching the filter criteria, raise if multiple exist."""
 
+    @router.get("/{collection}/{identifier}")
+    async def get_item(self, class_type: Type[T], identifier: PyObjectId) -> T:
+        """Get an item from the database."""
+        return await self.get(class_type, identifier)
 
-class DatabaseItem(ABC, pydantic.BaseModel):
-    """Base class for database items."""
+    @router.post("/{collection}/")
+    async def update_item(self, item: DatabaseItem) -> None:
+        """Create or update an item in the database."""
+        await self.update(item)
 
-    model_config = pydantic.ConfigDict(revalidate_instances="always", populate_by_name=True)
-    identifier: PyObjectId = pydantic.Field(default_factory=PyObjectId, alias="_id")
+    @router.delete("/{collection}/{identifier}")
+    async def delete_item(self, class_type: Type[T], identifier: PyObjectId) -> None:
+        """Delete an item from the database."""
+        await self.delete(class_type, identifier)
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, DatabaseItem):
-            return NotImplemented
-        return self.identifier == other.identifier
+    @router.get("/{collection}/")
+    async def list_items(self, class_type: Type[T]) -> Dict[str, T]:
+        """List all items in a collection."""
+        return await self.get_all(class_type)
 
-    def __hash__(self) -> int:
-        return hash(self.identifier)
+    @router.get("/{collection}/find/")
+    async def find_items(self, class_type: Type[T], **kwargs: str) -> Optional[Dict[PyObjectId, T]]:
+        """Find items in a collection matching the filter criteria."""
+        return await self.find(class_type, **kwargs)
+
+    @router.get("/{collection}/find_one/")
+    async def find_one_item(self, class_type: Type[T], **kwargs: str) -> Optional[T]:
+        """Find one item in a collection matching the filter criteria."""
+        return await self.find_one(class_type, **kwargs)
 
 
 class DatabaseError(Exception):
