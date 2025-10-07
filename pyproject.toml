@@ -1,6 +1,6 @@
 [project]
 name = "objectdb"
-version = "0.9.0"
+version = "0.9.1"
 description = ""
 authors = [{name = "Felix Trautwein <mail@felixtrautwein.de>"}]
 
@@ -22,6 +22,7 @@ dev = [
     "pytest-cov>=4.1.0",
     "pylint>=3.0.2",
     "mongomock>=4.3.0",
+    "httpx>=0.28.1",
 ]
 
 [build-system]

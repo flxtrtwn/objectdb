@@ -14,8 +14,8 @@ import pymongo.database
 import pytest
 import pytest_asyncio
 
-from objectdb.backends.mongodb import MongoDBDatabase
 from objectdb.backends.dict import DictDatabase
+from objectdb.backends.mongodb import MongoDBDatabase
 
 
 def asyncify(fn: Callable) -> Callable[..., types.CoroutineType[Any, Any, Any]]:
@@ -71,6 +71,12 @@ class AsyncMongoMockDatabase:
     def __getitem__(self, name: str) -> AsyncMongoMockCollection:
         return AsyncMongoMockCollection(self._db[name])
 
+    def list_collection_names(self) -> types.CoroutineType[Any, Any, list[str]]:
+        return asyncify(self._db.list_collection_names)()
+
+    def drop_collection(self, name: str) -> types.CoroutineType[Any, Any, None]:
+        return asyncify(self._db.drop_collection)(name)
+
 
 class AsyncMongoMockClient:
     """Async-compatible mongomock.MongoClient that mimics PyMongo Async client."""
@@ -97,4 +103,6 @@ class AsyncMongoMockClient:
 )
 async def db_fixture(request: pytest.FixtureRequest) -> AsyncGenerator[MongoDBDatabase, None]:
     """Async-compatible mongomock database for PyMongo asyncio tests."""
-    yield request.param
+    db = request.param
+    yield db
+    await db.purge()

@@ -3,14 +3,14 @@
 import copy
 from typing import Dict, Optional, Type
 
-from objectdb.database import Database, DatabaseError, DatabaseItem, ForeignKey, PyObjectId, T, UnknownEntityError
+from objectdb.database import Database, DatabaseError, DatabaseItem, ForeignKey, PydanticObjectId, T, UnknownEntityError
 
 
 class DictDatabase(Database):
     """Simple Database implementation with dictionary."""
 
     def __init__(self) -> None:
-        self.data: Dict[Type[DatabaseItem], Dict[PyObjectId, DatabaseItem]] = {}
+        self.data: Dict[Type[DatabaseItem], Dict[PydanticObjectId, DatabaseItem]] = {}
 
     async def update(self, item: DatabaseItem) -> None:
         """Update data."""
@@ -19,7 +19,7 @@ class DictDatabase(Database):
             self.data[item_type] = {}
         self.data[item_type][item.identifier] = copy.deepcopy(item)
 
-    async def get(self, class_type: Type[T], identifier: PyObjectId) -> T:
+    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:
         try:
             return self.data[class_type][identifier]  # type: ignore
         except KeyError as exc:
@@ -31,7 +31,7 @@ class DictDatabase(Database):
         except KeyError as exc:
             raise DatabaseError(f"Unkonwn collection: {class_type}") from exc
 
-    async def delete(self, class_type: Type[T], identifier: PyObjectId, cascade: bool = False) -> None:
+    async def delete(self, class_type: Type[T], identifier: PydanticObjectId, cascade: bool = False) -> None:
         try:
             del self.data[class_type][identifier]
         except KeyError as exc:
@@ -43,15 +43,15 @@ class DictDatabase(Database):
                         if isinstance(attribute, ForeignKey) and attribute == item.identifier:
                             del self.data[db][identifier]
 
-    async def find(self, class_type: Type[T], **kwargs: str) -> Optional[Dict[PyObjectId, T]]:
+    async def find(self, class_type: Type[T], **kwargs: str) -> Optional[Dict[PydanticObjectId, T]]:
         try:
             results = []
             for item in self.data[class_type].values():  # type: ignore
                 if all(getattr(item, k) == v for k, v in kwargs.items()):
                     results.append(item)  # type: ignore
             return {item.identifier: item for item in results}  # type: ignore
-        except KeyError as exc:
-            raise DatabaseError(f"Unkonwn collection: {class_type}") from exc
+        except KeyError:
+            return None
 
     async def find_one(self, class_type: Type[T], **kwargs: str) -> Optional[T]:
         if results := await self.find(class_type, **kwargs):
@@ -59,3 +59,11 @@ class DictDatabase(Database):
                 raise DatabaseError(f"Multiple entities found for {class_type} with {kwargs}")
             return list(results.values())[0]
         return None
+
+    async def close(self) -> None:
+        """Close database connection (no-op for DictDatabase)."""
+        pass
+
+    async def purge(self) -> None:
+        """Purge all collections in the database."""
+        self.data.clear()

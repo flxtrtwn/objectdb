@@ -11,3 +11,10 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+  - repo: local
+    hooks:
+      - id: test
+        name: Execute tests
+        language: system
+        entry: uv run pytest
+        pass_filenames: false
