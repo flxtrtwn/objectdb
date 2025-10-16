@@ -299,7 +299,7 @@ wheels = [
 
 [[package]]
 name = "objectdb"
-version = "0.9.1"
+version = "0.9.3"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
@@ -324,8 +324,8 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "fastapi", specifier = ">=0.118.0" },
-    { name = "pydantic", specifier = ">=2.11.10" },
-    { name = "pydantic-core", specifier = ">=2.33.2" },
+    { name = "pydantic", specifier = ">=2.0" },
+    { name = "pydantic-core", specifier = ">=2.0" },
     { name = "pymongo", specifier = ">=4.15.2" },
 ]
 
