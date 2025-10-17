@@ -80,7 +80,7 @@ class PydanticObjectId(ObjectId):
         cls, _source_type: Any, _handler: pydantic.GetCoreSchemaHandler
     ) -> core_schema.CoreSchema:
         return core_schema.no_info_after_validator_function(
-            cls.validate, core_schema.str_schema(), serialization=core_schema.plain_serializer_function_ser_schema(str)
+            cls.validate, core_schema.any_schema(), serialization=core_schema.plain_serializer_function_ser_schema(str)
         )
 
     @classmethod
