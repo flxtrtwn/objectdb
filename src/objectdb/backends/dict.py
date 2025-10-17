@@ -1,7 +1,7 @@
 """Dictionary-based example Database implementation for reference."""
 
 import copy
-from typing import Dict, Optional, Type
+from typing import Dict, Type
 
 from objectdb.database import Database, DatabaseError, DatabaseItem, ForeignKey, PydanticObjectId, T, UnknownEntityError
 
@@ -43,22 +43,22 @@ class DictDatabase(Database):
                         if isinstance(attribute, ForeignKey) and attribute == item.identifier:
                             del self.data[db][identifier]
 
-    async def find(self, class_type: Type[T], **kwargs: str) -> Optional[Dict[PydanticObjectId, T]]:
+    async def find(self, class_type: Type[T], **kwargs: str) -> Dict[PydanticObjectId, T]:
         try:
             results = []
             for item in self.data[class_type].values():  # type: ignore
                 if all(getattr(item, k) == v for k, v in kwargs.items()):
                     results.append(item)  # type: ignore
             return {item.identifier: item for item in results}  # type: ignore
-        except KeyError:
-            return None
+        except KeyError as exc:
+            raise UnknownEntityError from exc
 
-    async def find_one(self, class_type: Type[T], **kwargs: str) -> Optional[T]:
+    async def find_one(self, class_type: Type[T], **kwargs: str) -> T:
         if results := await self.find(class_type, **kwargs):
             if len(results) > 1:
                 raise DatabaseError(f"Multiple entities found for {class_type} with {kwargs}")
             return list(results.values())[0]
-        return None
+        raise UnknownEntityError
 
     async def close(self) -> None:
         """Close database connection (no-op for DictDatabase)."""

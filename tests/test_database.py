@@ -94,7 +94,8 @@ class TestFinding:
         # GIVEN no users in the database
         # WHEN finding a user by name that does not exist
         # THEN None is returned
-        assert await db.find_one(User, name="NonExistentUser") is None
+        with pytest.raises(UnknownEntityError):
+            await db.find_one(User, name="NonExistentUser")
 
 
 class TestDeleting:
@@ -259,5 +260,20 @@ class TestEndpoints:
     async def test_find_one_not_found(self, client: TestClient) -> None:
         """Test find_one returns null for non-existent user."""
         response = client.get("/user/find_one/", params={"name": "NonExistent"})
-        assert response.status_code == 200
-        assert response.json() is None
+        assert response.status_code == 404
+        assert response.json() == {"detail": "user not found"}
+
+    @pytest.mark.asyncio
+    async def test_find_one_duplicate(self, client: TestClient, db: Database) -> None:
+        """Test find_one returns error for duplicate users."""
+        # GIVEN two users in the database with the same email address
+        user1 = User(name="Frank", email="frank@example.com")
+        user2 = User(name="Grace", email="frank@example.com")
+        await db.update(user1)
+        await db.update(user2)
+
+        # WHEN querying for that user
+        response = client.get("/user/find_one/", params={"email": "frank@example.com"})
+
+        # THEN the request is not successful
+        assert response.status_code == 500

@@ -1,11 +1,11 @@
 """MongoDB Database implementation."""
 
-from typing import Any, Dict, Mapping, Optional, Type
+from typing import Any, Dict, Mapping, Type
 
 from pymongo import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 
-from objectdb.database import Database, DatabaseItem, PydanticObjectId, T, UnknownEntityError
+from objectdb.database import Database, DatabaseError, DatabaseItem, PydanticObjectId, T, UnknownEntityError
 
 
 class MongoDBDatabase(Database):
@@ -28,7 +28,7 @@ class MongoDBDatabase(Database):
             return class_type.model_validate(res)
         raise UnknownEntityError(f"Unknown identifier: {identifier}")
 
-    async def get_all(self, class_type: Type[T]) -> Optional[Dict[str, T]]:
+    async def get_all(self, class_type: Type[T]) -> Dict[PydanticObjectId, T]:
         collection = self.database[class_type.__name__]
         validated_results: dict[PydanticObjectId, T] = {}
         if results := collection.find():
@@ -36,15 +36,15 @@ class MongoDBDatabase(Database):
                 validated_result = class_type.model_validate(result)
                 validated_results[validated_result.identifier] = validated_result
             return validated_results
-        return None
+        raise DatabaseError(f"Unknown collection: {class_type}")
 
     async def delete(self, class_type: Type[T], identifier: PydanticObjectId, cascade: bool = False) -> None:
         collection = self.database[class_type.__name__]
         result = await collection.delete_one(filter={"_id": identifier})
         if result.deleted_count != 1:
-            raise UnknownEntityError(f"Unknown identifier: {identifier}")
+            raise UnknownEntityError(f"Not found {class_type} with identifier: {identifier}")
 
-    async def find(self, class_type: Type[T], **kwargs: Any) -> Optional[Dict[PydanticObjectId, T]]:
+    async def find(self, class_type: Type[T], **kwargs: Any) -> Dict[PydanticObjectId, T]:
         collection = self.database[class_type.__name__]
         validated_results: dict[PydanticObjectId, T] = {}
         if results := collection.find(filter=kwargs):
@@ -52,14 +52,19 @@ class MongoDBDatabase(Database):
                 validated_result = class_type.model_validate(result)
                 validated_results[validated_result.identifier] = validated_result
             return validated_results
-        return None
+        raise UnknownEntityError(f"Not found {class_type} with specified arguments")
 
-    async def find_one(self, class_type: Type[T], **kwargs: Any) -> Optional[T]:
+    async def find_one(self, class_type: Type[T], **kwargs: Any) -> T:
         """Find one item matching the criteria."""
         collection = self.database[class_type.__name__]
-        if result := await collection.find_one(filter=kwargs):
-            return class_type.model_validate(result)
-        return None
+        validated_results: list[T] = []
+        async for result in collection.find(filter=kwargs, limit=2):
+            validated_results.append(class_type.model_validate(result))
+        if validated_results:
+            if len(validated_results) == 1:
+                return validated_results[0]
+            raise DatabaseError(f"Duplicate {class_type} found with specified arguments")
+        raise UnknownEntityError(f"Not found unique {class_type} with specified arguments")
 
     async def close(self) -> None:
         """Close client connection."""
