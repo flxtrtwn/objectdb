@@ -19,7 +19,7 @@ class MongoDBDatabase(Database):
         """Update data."""
         item_type = type(item)
         await self.database[item_type.__name__].update_one(
-            filter={"_id": item.identifier}, update={"$set": item.model_dump(by_alias=True)}, upsert=True
+            filter={"_id": item.identifier}, update={"$set": item.model_dump(exclude={"identifier"})}, upsert=True
         )
 
     async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:

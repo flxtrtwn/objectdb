@@ -179,7 +179,7 @@ class TestEndpoints:
 
         # WHEN updating the user
         user.email = "bob2@example.com"
-        response = client.post("/user/", json=user.model_dump())
+        response = client.post("/user/", json=user.model_dump(mode="json"))
 
         # THEN response should reflect changes
         assert response.status_code == 200
