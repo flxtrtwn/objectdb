@@ -1,7 +1,7 @@
 """Dictionary-based example Database implementation for reference."""
 
 import copy
-from typing import Dict, Type
+from typing import Dict, List, Type
 
 from objectdb.database import Database, DatabaseError, DatabaseItem, ForeignKey, PydanticObjectId, T, UnknownEntityError
 
@@ -25,9 +25,9 @@ class DictDatabase(Database):
         except KeyError as exc:
             raise UnknownEntityError(f"Unknown identifier: {identifier}") from exc
 
-    async def get_all(self, class_type: Type[T]) -> Dict[str, T]:
+    async def get_all(self, class_type: Type[T]) -> List[T]:
         try:
-            return self.data[class_type]  # type: ignore
+            return self.data[class_type].values()  # type: ignore
         except KeyError as exc:
             raise DatabaseError(f"Unkonwn collection: {class_type}") from exc
 
@@ -43,13 +43,13 @@ class DictDatabase(Database):
                         if isinstance(attribute, ForeignKey) and attribute == item.identifier:
                             del self.data[db][identifier]
 
-    async def find(self, class_type: Type[T], **kwargs: str) -> Dict[PydanticObjectId, T]:
+    async def find(self, class_type: Type[T], **kwargs: str) -> List[T]:
         try:
-            results = []
+            results: List[T] = []
             for item in self.data[class_type].values():  # type: ignore
                 if all(getattr(item, k) == v for k, v in kwargs.items()):
                     results.append(item)  # type: ignore
-            return {item.identifier: item for item in results}  # type: ignore
+            return results
         except KeyError as exc:
             raise UnknownEntityError from exc
 
@@ -57,7 +57,7 @@ class DictDatabase(Database):
         if results := await self.find(class_type, **kwargs):
             if len(results) > 1:
                 raise DatabaseError(f"Multiple entities found for {class_type} with {kwargs}")
-            return list(results.values())[0]
+            return results[0]
         raise UnknownEntityError
 
     async def close(self) -> None:

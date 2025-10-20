@@ -1,6 +1,6 @@
 """MongoDB Database implementation."""
 
-from typing import Any, Dict, Mapping, Type
+from typing import Any, Mapping, Type
 
 from pymongo import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
@@ -28,13 +28,12 @@ class MongoDBDatabase(Database):
             return class_type.model_validate(res)
         raise UnknownEntityError(f"Unknown identifier: {identifier}")
 
-    async def get_all(self, class_type: Type[T]) -> Dict[PydanticObjectId, T]:
+    async def get_all(self, class_type: Type[T]) -> list[T]:
         collection = self.database[class_type.__name__]
-        validated_results: dict[PydanticObjectId, T] = {}
+        validated_results: list[T] = []
         if results := collection.find():
             async for result in results:
-                validated_result = class_type.model_validate(result)
-                validated_results[validated_result.identifier] = validated_result
+                validated_results.append(class_type.model_validate(result))
             return validated_results
         raise DatabaseError(f"Unknown collection: {class_type}")
 
@@ -44,13 +43,12 @@ class MongoDBDatabase(Database):
         if result.deleted_count != 1:
             raise UnknownEntityError(f"Not found {class_type} with identifier: {identifier}")
 
-    async def find(self, class_type: Type[T], **kwargs: Any) -> Dict[PydanticObjectId, T]:
+    async def find(self, class_type: Type[T], **kwargs: Any) -> list[T]:
         collection = self.database[class_type.__name__]
-        validated_results: dict[PydanticObjectId, T] = {}
+        validated_results: list[T] = []
         if results := collection.find(filter=kwargs):
             async for result in results:
-                validated_result = class_type.model_validate(result)
-                validated_results[validated_result.identifier] = validated_result
+                validated_results.append(class_type.model_validate(result))
             return validated_results
         raise UnknownEntityError(f"Not found {class_type} with specified arguments")
 

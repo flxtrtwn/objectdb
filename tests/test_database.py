@@ -73,7 +73,7 @@ class TestFinding:
         # WHEN finding users by name
         results = await db.find(User, name="Eve")
         # THEN only the matching user is returned
-        assert results == {user1.identifier: user1}
+        assert results == [user1]
 
     @pytest.mark.asyncio
     async def test_find_one_user(self, db: Database) -> None:
@@ -216,7 +216,7 @@ class TestEndpoints:
 
         # THEN response should include all users
         assert response.status_code == 200
-        users = [User.model_validate(user) for user in dict(response.json()).values()]
+        users = [User.model_validate(user) for user in list(response.json())]
         assert user1 in users
         assert user2 in users
 
@@ -236,7 +236,7 @@ class TestEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
-        found_user = next(iter(data.values()))
+        found_user = next(iter(data))
         assert found_user["name"] == "Frank"
         assert found_user["email"] == "frank@example.com"
 
