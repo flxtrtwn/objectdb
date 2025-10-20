@@ -15,7 +15,7 @@ class MongoDBDatabase(Database):
         self.connection: AsyncMongoClient[Mapping[str, dict[str, Any]]] = mongodb_client
         self.database: AsyncDatabase[Mapping[str, dict[str, Any]]] = self.connection[name]
 
-    async def update(self, item: DatabaseItem):
+    async def upsert(self, item: DatabaseItem):
         """Update data."""
         item_type = type(item)
         await self.database[item_type.__name__].update_one(
@@ -51,18 +51,6 @@ class MongoDBDatabase(Database):
                 validated_results.append(class_type.model_validate(result))
             return validated_results
         raise UnknownEntityError(f"Not found {class_type} with specified arguments")
-
-    async def find_one(self, class_type: Type[T], **kwargs: Any) -> T:
-        """Find one item matching the criteria."""
-        collection = self.database[class_type.__name__]
-        validated_results: list[T] = []
-        async for result in collection.find(filter=kwargs, limit=2):
-            validated_results.append(class_type.model_validate(result))
-        if validated_results:
-            if len(validated_results) == 1:
-                return validated_results[0]
-            raise DatabaseError(f"Duplicate {class_type} found with specified arguments")
-        raise UnknownEntityError(f"Not found unique {class_type} with specified arguments")
 
     async def close(self) -> None:
         """Close client connection."""

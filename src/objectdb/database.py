@@ -128,8 +128,8 @@ class Database(ABC):
     """Database abstraction."""
 
     @abstractmethod
-    async def update(self, item: DatabaseItem) -> None:
-        """Update entity."""
+    async def upsert(self, item: DatabaseItem) -> None:
+        """Update entity or create if it does not exist."""
 
     @abstractmethod
     async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:
@@ -146,11 +146,6 @@ class Database(ABC):
     @abstractmethod
     async def find(self, class_type: Type[T], **kwargs: str) -> List[T]:
         """Return all entities of collection matching the filter criteria,
-        raise UnknownEntityError if entity does not exist."""
-
-    @abstractmethod
-    async def find_one(self, class_type: Type[T], **kwargs: str) -> T:
-        """Return one entitiy of collection matching the filter criteria,
         raise UnknownEntityError if entity does not exist."""
 
     @abstractmethod
@@ -180,13 +175,13 @@ def create_api_router(db: Database, class_types: List[Type[DatabaseItem]]) -> fa
 
             return get_item  # type: ignore
 
-        def create_update_item(cls_name: str, cls_type: Type[DatabaseItem]):
-            @router.post(f"/{cls_name}/")
-            async def update_item(request: fastapi.Request) -> None:
+        def create_upsert_item(cls_name: str, cls_type: Type[DatabaseItem]):
+            @router.post(f"/{cls_name}")
+            async def upsert_item(request: fastapi.Request) -> None:
                 data = await request.json()
-                await db.update(cls_type.model_validate(data))
+                await db.upsert(cls_type.model_validate(data))
 
-            return update_item
+            return upsert_item
 
         def create_delete_item(cls_name: str, cls_type: Type[DatabaseItem]):
             @router.delete(f"/{cls_name}/{{identifier}}")
@@ -211,7 +206,7 @@ def create_api_router(db: Database, class_types: List[Type[DatabaseItem]]) -> fa
             return get_all  # type: ignore
 
         def create_find(cls_name: str, cls_type: Type[DatabaseItem]):
-            @router.get(f"/{cls_name}/find/", response_model=List[cls_type])
+            @router.get(f"/{cls_name}", response_model=List[cls_type])
             async def find(request: fastapi.Request) -> List[DatabaseItem]:
                 """Find items by criteria."""
                 try:
@@ -221,25 +216,11 @@ def create_api_router(db: Database, class_types: List[Type[DatabaseItem]]) -> fa
 
             return find
 
-        def create_find_one(cls_name: str, cls_type: Type[DatabaseItem]):
-            @router.get(f"/{cls_name}/find_one/", response_model=cls_type)
-            async def find_one(request: fastapi.Request) -> cls_type:  # type: ignore
-                """Find a single item by criteria."""
-                try:
-                    return await db.find_one(cls_type, **request.query_params)
-                except UnknownEntityError as exc:
-                    raise fastapi.HTTPException(404, detail=f"{cls_name} not found") from exc
-                except DatabaseError as exc:
-                    raise fastapi.HTTPException(500) from exc
-
-            return find_one  # type: ignore
-
         create_get_item(class_name, class_type)
-        create_update_item(class_name, class_type)
+        create_upsert_item(class_name, class_type)
         create_delete_item(class_name, class_type)
         create_get_all(class_name, class_type)
         create_find(class_name, class_type)
-        create_find_one(class_name, class_type)
 
     return router
 

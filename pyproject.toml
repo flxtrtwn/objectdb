@@ -1,6 +1,6 @@
 [project]
 name = "objectdb"
-version = "0.11.0"
+version = "0.12.0"
 description = ""
 authors = [{name = "Felix Trautwein <mail@felixtrautwein.de>"}]
 

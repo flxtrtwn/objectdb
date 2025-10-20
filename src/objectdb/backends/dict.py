@@ -12,7 +12,7 @@ class DictDatabase(Database):
     def __init__(self) -> None:
         self.data: Dict[Type[DatabaseItem], Dict[PydanticObjectId, DatabaseItem]] = {}
 
-    async def update(self, item: DatabaseItem) -> None:
+    async def upsert(self, item: DatabaseItem) -> None:
         """Update data."""
         item_type = type(item)
         if item_type not in self.data:
