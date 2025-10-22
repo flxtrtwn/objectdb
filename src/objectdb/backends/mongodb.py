@@ -34,8 +34,7 @@ class MongoDBDatabase(Database):
         if results := collection.find():
             async for result in results:
                 validated_results.append(class_type.model_validate(result))
-            if validated_results:
-                return validated_results
+            return validated_results
         raise DatabaseError(f"Unknown collection: {class_type}")
 
     async def delete(self, class_type: Type[T], identifier: PydanticObjectId, cascade: bool = False) -> None:
@@ -50,8 +49,7 @@ class MongoDBDatabase(Database):
         if results := collection.find(filter=kwargs):
             async for result in results:
                 validated_results.append(class_type.model_validate(result))
-            if validated_results:
-                return validated_results
+            return validated_results
         raise UnknownEntityError(f"Not found {class_type} with specified arguments")
 
     async def close(self) -> None:
