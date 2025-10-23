@@ -14,7 +14,7 @@ import pymongo.database
 import pytest
 import pytest_asyncio
 
-from objectdb.backends.dict import DictDatabase
+from objectdb.backends.dictionary import DictDatabase
 from objectdb.backends.mongodb import MongoDBDatabase
 
 
