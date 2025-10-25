@@ -13,6 +13,11 @@ repos:
       - id: ruff-format
   - repo: local
     hooks:
+      - id: validate
+        name: Validate package
+        language: system
+        entry: uv sync
+        pass_filenames: false
       - id: test
         name: Execute tests
         language: system
