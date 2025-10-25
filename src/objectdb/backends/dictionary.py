@@ -1,7 +1,7 @@
 """Dictionary-based example Database implementation for reference."""
 
 import copy
-from typing import Dict, List, Type
+from typing import Dict, List, Optional, Type
 
 from objectdb.database import Database, DatabaseError, DatabaseItem, ForeignKey, PydanticObjectId, T, UnknownEntityError
 
@@ -12,12 +12,16 @@ class DictDatabase(Database):
     def __init__(self) -> None:
         self.data: Dict[Type[DatabaseItem], Dict[PydanticObjectId, DatabaseItem]] = {}
 
-    async def upsert(self, item: DatabaseItem) -> None:
+    async def upsert(self, item: DatabaseItem) -> Optional[PydanticObjectId]:
         """Update data."""
         item_type = type(item)
+        return_value = None
         if item_type not in self.data:
             self.data[item_type] = {}
+        if item.identifier not in self.data[item_type]:
+            return_value = item.identifier
         self.data[item_type][item.identifier] = copy.deepcopy(item)
+        return return_value
 
     async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:
         try:

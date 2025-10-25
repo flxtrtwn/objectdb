@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, Generic, List, Type, TypeVar
+from typing import Any, Generic, List, Optional, Type, TypeVar
 
 import fastapi
 import pydantic
@@ -111,10 +111,6 @@ class DatabaseItem(ABC, pydantic.BaseModel):
 
     identifier: PydanticObjectId = pydantic.Field(alias="_id", default_factory=PydanticObjectId)
 
-    # @pydantic.field_serializer("identifier")
-    # def serialize_identifier(self, identifier: PydanticObjectId, _info):
-    #     return str(identifier)
-
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, DatabaseItem):
             return NotImplemented
@@ -128,7 +124,7 @@ class Database(ABC):
     """Database abstraction."""
 
     @abstractmethod
-    async def upsert(self, item: DatabaseItem) -> None:
+    async def upsert(self, item: DatabaseItem) -> Optional[PydanticObjectId]:
         """Update entity or create if it does not exist."""
 
     @abstractmethod
@@ -177,9 +173,9 @@ def create_api_router(db: Database, class_types: List[Type[DatabaseItem]]) -> fa
 
         def create_upsert_item(cls_name: str, cls_type: Type[DatabaseItem]):
             @router.post(f"/{cls_name}")
-            async def upsert_item(request: fastapi.Request) -> None:
+            async def upsert_item(request: fastapi.Request) -> Optional[PydanticObjectId]:
                 data = await request.json()
-                await db.upsert(cls_type.model_validate(data))
+                return await db.upsert(cls_type.model_validate(data))
 
             return upsert_item
 

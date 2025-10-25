@@ -26,9 +26,10 @@ class TestUpdating:
         with pytest.raises(UnknownEntityError):
             await db.get(User, identifier=user.identifier)
         # WHEN inserting it into the database
-        await db.upsert(user)
+        new_identifier = await db.upsert(user)
         # THEN it can be retrieved by its identifier
-        fetched = await db.get(User, identifier=user.identifier)
+        assert new_identifier
+        fetched = await db.get(User, identifier=new_identifier)
         assert fetched.name == "Alice"
         assert fetched.identifier == user.identifier
 
@@ -40,8 +41,9 @@ class TestUpdating:
         await db.upsert(user)
         # WHEN updating the user's email
         user.email = "bob@example.com"
-        await db.upsert(user)
-        # THEN the change is reflected in the database
+        new_identifier = await db.upsert(user)
+        # THEN the change is reflected in the database and no new identifier is returned
+        assert new_identifier is None
         fetched = await db.get(User, identifier=user.identifier)
         assert fetched.email == "bob@example.com"
 
@@ -144,8 +146,9 @@ class TestEndpoints:
         user = User(name="Alice", email="alice@example.com")
         # WHEN creating a new user
         response = client.post("/user", json=user.model_dump())
-        # THEN the user should be in the database
+        # THEN the response should be the new identifier and the user should be in the database
         assert response.status_code == 200
+        assert PydanticObjectId(response.json()) == user.identifier
         assert user == await db.get(User, user.identifier)
 
     @pytest.mark.asyncio
@@ -159,8 +162,9 @@ class TestEndpoints:
         user.email = "bob2@example.com"
         response = client.post("/user", json=user.model_dump(mode="json"))
 
-        # THEN response should reflect changes
+        # THEN response should be null and the database should reflect changes
         assert response.status_code == 200
+        assert response.text == "null"
         assert (await db.get(User, user.identifier)).email == "bob2@example.com"
 
     @pytest.mark.asyncio

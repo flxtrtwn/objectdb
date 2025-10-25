@@ -1,6 +1,6 @@
 """MongoDB Database implementation."""
 
-from typing import Any, Mapping, Type
+from typing import Any, Mapping, Optional, Type
 
 from pymongo import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
@@ -15,12 +15,15 @@ class MongoDBDatabase(Database):
         self.connection: AsyncMongoClient[Mapping[str, dict[str, Any]]] = mongodb_client
         self.database: AsyncDatabase[Mapping[str, dict[str, Any]]] = self.connection[name]
 
-    async def upsert(self, item: DatabaseItem):
+    async def upsert(self, item: DatabaseItem) -> Optional[PydanticObjectId]:
         """Update data."""
         item_type = type(item)
-        await self.database[item_type.__name__].update_one(
+        upsert_result = await self.database[item_type.__name__].update_one(
             filter={"_id": item.identifier}, update={"$set": item.model_dump(exclude={"identifier"})}, upsert=True
         )
+        if upsert_result.matched_count:
+            return None
+        return PydanticObjectId(upsert_result.upserted_id)
 
     async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:
         collection = self.database[class_type.__name__]
