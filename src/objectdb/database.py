@@ -107,7 +107,9 @@ class PydanticObjectId(ObjectId):
 class DatabaseItem(ABC, pydantic.BaseModel):
     """Base class for database items."""
 
-    model_config = pydantic.ConfigDict(revalidate_instances="always", populate_by_name=True, from_attributes=True)
+    model_config = pydantic.ConfigDict(
+        revalidate_instances="always", validate_assignment=True, populate_by_name=True, from_attributes=True
+    )
 
     identifier: PydanticObjectId = pydantic.Field(alias="_id", default_factory=PydanticObjectId)
 
