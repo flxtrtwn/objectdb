@@ -24,11 +24,11 @@ class DictDatabase(Database):
         self.data[item_type][item.identifier] = copy.deepcopy(item)
         return return_value
 
-    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T | None:
+    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:
         try:
             return self.data[class_type][identifier]  # type: ignore
-        except KeyError:
-            return None
+        except KeyError as exc:
+            raise UnknownEntityError(f"Unknown identifier: {identifier}") from exc
 
     async def delete(self, class_type: Type[T], identifier: PydanticObjectId, cascade: bool = False) -> None:
         try:

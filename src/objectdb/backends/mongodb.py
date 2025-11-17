@@ -25,16 +25,16 @@ class MongoDBDatabase(Database):
             return None
         return PydanticObjectId(upsert_result.upserted_id)
 
-    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T | None:
+    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:
         collection = self.database[class_type.__name__]
         if result := await collection.find_one(filter={"_id": identifier}):
             return class_type.model_validate(result)
-        return None
+        raise UnknownEntityError(f"Not found {class_type} with identifier: {identifier}")
 
     async def delete(self, class_type: Type[T], identifier: PydanticObjectId, cascade: bool = False) -> None:
         collection = self.database[class_type.__name__]
         result = await collection.delete_one(filter={"_id": identifier})
-        if result.deleted_count != 1:
+        if result.deleted_count == 0:
             raise UnknownEntityError(f"Not found {class_type} with identifier: {identifier}")
 
     async def find(self, class_type: Type[T], **kwargs: Any) -> list[T]:

@@ -23,7 +23,8 @@ class TestUpdating:
         """Test inserting and retrieving an item."""
         # GIVEN a user not existing in the database
         user = User(name="Alice", email="alice@example.com")
-        assert await db.get(User, identifier=user.identifier) is None
+        with pytest.raises(UnknownEntityError):
+            await db.get(User, identifier=user.identifier)
         # WHEN inserting it into the database
         new_identifier = await db.upsert(user)
         # THEN it can be retrieved by its identifier
@@ -58,7 +59,9 @@ class TestGetting:
         # GIVEN a user that does not exist in the database
         user = User(name="Dave", email="dave@example.com")
         # WHEN trying to get a user with a random identifier
-        assert await db.get(User, identifier=user.identifier) is None
+        # THEN an UnknownEntityError is raised
+        with pytest.raises(UnknownEntityError):
+            assert await db.get(User, identifier=user.identifier) is None
 
 
 class TestFinding:
@@ -91,7 +94,8 @@ class TestDeleting:
         # WHEN deleting the user
         await db.delete(type(user), user.identifier)
         # THEN the user can no longer be retrieved
-        assert await db.get(User, identifier=user.identifier) is None
+        with pytest.raises(UnknownEntityError):
+            assert await db.get(User, identifier=user.identifier)
 
     @pytest.mark.asyncio
     async def test_delete_unknown(self, db: Database) -> None:
@@ -134,9 +138,8 @@ class TestEndpoints:
         # GIVEN no users in the database
         # WHEN requesting a user by a random ID
         response = client.get("/user/507f1f77bcf86cd799439011")
-        # THEN a 404 error is returned with item not found detail
-        assert response.status_code == 200
-        assert response.json() is None
+        # THEN a 404 error is returned
+        assert response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_create_user(self, client: TestClient, db: Database) -> None:
@@ -183,8 +186,7 @@ class TestEndpoints:
 
         # AND user should not exist
         get_response = client.get(f"/user/{user.identifier}")
-        assert get_response.status_code == 200
-        assert get_response.json() is None
+        assert get_response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_get_all_users(self, client: TestClient, db: Database) -> None:

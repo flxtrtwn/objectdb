@@ -75,8 +75,8 @@ class Database(ABC):
         """
 
     @abstractmethod
-    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T | None:
-        """Return entity if it exists or None otherwise."""
+    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:
+        """Return entity if it exists or raise UnknownEntityError otherwise."""
 
     @abstractmethod
     async def delete(self, class_type: Type[T], identifier: PydanticObjectId, cascade: bool = False) -> None:
@@ -103,11 +103,13 @@ def create_api_router(db: Database, class_types: list[Type[DatabaseItem]]) -> fa
         class_name = class_type.__name__.lower()
 
         def create_get_item(cls_name: str, cls_type: Type[DatabaseItem]):
-            @router.get(f"/{cls_name}/{{identifier}}", response_model=cls_type | None)
-            async def get_item(identifier: PydanticObjectId) -> cls_type | None:  # type: ignore
+            @router.get(f"/{cls_name}/{{identifier}}", response_model=cls_type)
+            async def get_item(identifier: PydanticObjectId) -> cls_type:  # type: ignore
                 """Get a single item by ID."""
-                item = await db.get(cls_type, identifier)
-                return item.model_dump() if item else None
+                try:
+                    return await db.get(cls_type, identifier)
+                except UnknownEntityError as exc:
+                    raise fastapi.HTTPException(status_code=404, detail="Item not found") from exc
 
             return get_item  # type: ignore
 
