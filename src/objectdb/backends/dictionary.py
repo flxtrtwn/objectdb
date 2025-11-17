@@ -1,16 +1,17 @@
 """Dictionary-based example Database implementation for reference."""
 
 import copy
-from typing import Dict, List, Optional, Type
+from typing import Optional, Type
 
-from objectdb.database import Database, DatabaseError, DatabaseItem, ForeignKey, PydanticObjectId, T, UnknownEntityError
+from objectdb.database import Database, DatabaseError, DatabaseItem, PydanticObjectId, T, UnknownEntityError
+from objectdb.foreign_key import ForeignKey
 
 
 class DictDatabase(Database):
     """Simple Database implementation with dictionary."""
 
     def __init__(self) -> None:
-        self.data: Dict[Type[DatabaseItem], Dict[PydanticObjectId, DatabaseItem]] = {}
+        self.data: dict[Type[DatabaseItem], dict[PydanticObjectId, DatabaseItem]] = {}
 
     async def upsert(self, item: DatabaseItem) -> Optional[PydanticObjectId]:
         """Update data."""
@@ -23,17 +24,11 @@ class DictDatabase(Database):
         self.data[item_type][item.identifier] = copy.deepcopy(item)
         return return_value
 
-    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:
+    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T | None:
         try:
             return self.data[class_type][identifier]  # type: ignore
-        except KeyError as exc:
-            raise UnknownEntityError(f"Unknown identifier: {identifier}") from exc
-
-    async def get_all(self, class_type: Type[T]) -> List[T]:
-        try:
-            return self.data[class_type].values()  # type: ignore
-        except KeyError as exc:
-            raise DatabaseError(f"Unkonwn collection: {class_type}") from exc
+        except KeyError:
+            return None
 
     async def delete(self, class_type: Type[T], identifier: PydanticObjectId, cascade: bool = False) -> None:
         try:
@@ -47,15 +42,15 @@ class DictDatabase(Database):
                         if isinstance(attribute, ForeignKey) and attribute == item.identifier:
                             del self.data[db][identifier]
 
-    async def find(self, class_type: Type[T], **kwargs: str) -> List[T]:
+    async def find(self, class_type: Type[T], **kwargs: str) -> list[T]:
         try:
-            results: List[T] = []
+            results: list[T] = []
             for item in self.data[class_type].values():  # type: ignore
                 if all(getattr(item, k) == v for k, v in kwargs.items()):
                     results.append(item)  # type: ignore
             return results
-        except KeyError as exc:
-            raise UnknownEntityError from exc
+        except KeyError:
+            return []
 
     async def find_one(self, class_type: Type[T], **kwargs: str) -> T:
         if results := await self.find(class_type, **kwargs):

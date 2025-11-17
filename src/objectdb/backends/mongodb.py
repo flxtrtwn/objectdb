@@ -5,7 +5,7 @@ from typing import Any, Mapping, Optional, Type
 from pymongo import AsyncMongoClient
 from pymongo.asynchronous.database import AsyncDatabase
 
-from objectdb.database import Database, DatabaseError, DatabaseItem, PydanticObjectId, T, UnknownEntityError
+from objectdb.database import Database, DatabaseItem, PydanticObjectId, T, UnknownEntityError
 
 
 class MongoDBDatabase(Database):
@@ -25,20 +25,11 @@ class MongoDBDatabase(Database):
             return None
         return PydanticObjectId(upsert_result.upserted_id)
 
-    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:
+    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T | None:
         collection = self.database[class_type.__name__]
-        if res := await collection.find_one(filter={"_id": identifier}):
-            return class_type.model_validate(res)
-        raise UnknownEntityError(f"Unknown identifier: {identifier}")
-
-    async def get_all(self, class_type: Type[T]) -> list[T]:
-        collection = self.database[class_type.__name__]
-        validated_results: list[T] = []
-        if results := collection.find():
-            async for result in results:
-                validated_results.append(class_type.model_validate(result))
-            return validated_results
-        raise DatabaseError(f"Unknown collection: {class_type}")
+        if result := await collection.find_one(filter={"_id": identifier}):
+            return class_type.model_validate(result)
+        return None
 
     async def delete(self, class_type: Type[T], identifier: PydanticObjectId, cascade: bool = False) -> None:
         collection = self.database[class_type.__name__]
@@ -49,11 +40,10 @@ class MongoDBDatabase(Database):
     async def find(self, class_type: Type[T], **kwargs: Any) -> list[T]:
         collection = self.database[class_type.__name__]
         validated_results: list[T] = []
-        if results := collection.find(filter=kwargs):
-            async for result in results:
-                validated_results.append(class_type.model_validate(result))
-            return validated_results
-        raise UnknownEntityError(f"Not found {class_type} with specified arguments")
+        results = collection.find(filter=kwargs)
+        async for result in results:
+            validated_results.append(class_type.model_validate(result))
+        return validated_results
 
     async def close(self) -> None:
         """Close client connection."""

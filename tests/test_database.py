@@ -23,13 +23,13 @@ class TestUpdating:
         """Test inserting and retrieving an item."""
         # GIVEN a user not existing in the database
         user = User(name="Alice", email="alice@example.com")
-        with pytest.raises(UnknownEntityError):
-            await db.get(User, identifier=user.identifier)
+        assert await db.get(User, identifier=user.identifier) is None
         # WHEN inserting it into the database
         new_identifier = await db.upsert(user)
         # THEN it can be retrieved by its identifier
         assert new_identifier
         fetched = await db.get(User, identifier=new_identifier)
+        assert fetched is not None
         assert fetched.name == "Alice"
         assert fetched.identifier == user.identifier
 
@@ -45,6 +45,7 @@ class TestUpdating:
         # THEN the change is reflected in the database and no new identifier is returned
         assert new_identifier is None
         fetched = await db.get(User, identifier=user.identifier)
+        assert fetched is not None
         assert fetched.email == "bob@example.com"
 
 
@@ -57,8 +58,7 @@ class TestGetting:
         # GIVEN a user that does not exist in the database
         user = User(name="Dave", email="dave@example.com")
         # WHEN trying to get a user with a random identifier
-        with pytest.raises(UnknownEntityError):
-            await db.get(User, identifier=user.identifier)
+        assert await db.get(User, identifier=user.identifier) is None
 
 
 class TestFinding:
@@ -91,8 +91,7 @@ class TestDeleting:
         # WHEN deleting the user
         await db.delete(type(user), user.identifier)
         # THEN the user can no longer be retrieved
-        with pytest.raises(UnknownEntityError):
-            await db.get(User, identifier=user.identifier)
+        assert await db.get(User, identifier=user.identifier) is None
 
     @pytest.mark.asyncio
     async def test_delete_unknown(self, db: Database) -> None:
@@ -136,8 +135,8 @@ class TestEndpoints:
         # WHEN requesting a user by a random ID
         response = client.get("/user/507f1f77bcf86cd799439011")
         # THEN a 404 error is returned with item not found detail
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Item not found"
+        assert response.status_code == 200
+        assert response.json() is None
 
     @pytest.mark.asyncio
     async def test_create_user(self, client: TestClient, db: Database) -> None:
@@ -165,7 +164,9 @@ class TestEndpoints:
         # THEN response should be null and the database should reflect changes
         assert response.status_code == 200
         assert response.text == "null"
-        assert (await db.get(User, user.identifier)).email == "bob2@example.com"
+        fetched = await db.get(User, user.identifier)
+        assert fetched is not None
+        assert fetched.email == "bob2@example.com"
 
     @pytest.mark.asyncio
     async def test_delete_user(self, client: TestClient, db: Database) -> None:
@@ -182,7 +183,8 @@ class TestEndpoints:
 
         # AND user should not exist
         get_response = client.get(f"/user/{user.identifier}")
-        assert get_response.status_code == 404
+        assert get_response.status_code == 200
+        assert get_response.json() is None
 
     @pytest.mark.asyncio
     async def test_get_all_users(self, client: TestClient, db: Database) -> None:
