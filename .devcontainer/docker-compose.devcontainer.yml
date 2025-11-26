@@ -1,7 +1,6 @@
 version: '3.4'
 services:
     devcontainer:
-        hostname: objectdb
         build:
             context: ..
             dockerfile: .devcontainer/Dockerfile
