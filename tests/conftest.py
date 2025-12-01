@@ -3,19 +3,25 @@
 from __future__ import annotations
 
 import asyncio
-import types
-from typing import Any, AsyncGenerator, Callable, Mapping, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import mongomock
 import pymongo
 import pymongo.collection
 import pymongo.cursor
-import pymongo.database
-import pytest
 import pytest_asyncio
 
 from objectdb.backends.dictionary import DictDatabase
 from objectdb.backends.mongodb import MongoDBDatabase
+
+from .mocks import Administrator, User
+
+if TYPE_CHECKING:
+    import types
+    from collections.abc import AsyncGenerator, Callable, Mapping
+
+    import pymongo.database
+    import pytest
 
 
 def asyncify(fn: Callable) -> Callable[..., types.CoroutineType[Any, Any, Any]]:
@@ -36,9 +42,11 @@ class AsyncCursor:
         self._index = 0
 
     def __aiter__(self) -> Self:
+        """Async iteration."""
         return self
 
     async def __anext__(self) -> pymongo.collection.Cursor[Any]:
+        """Async next."""
         if self._index >= len(self._docs):
             raise StopAsyncIteration
         doc = self._docs[self._index]
@@ -49,7 +57,7 @@ class AsyncCursor:
 class AsyncMongoMockCollection:
     """Async wrapper around a mongomock Collection."""
 
-    def __init__(self, collection: pymongo.collection.Collection):
+    def __init__(self, collection: pymongo.collection.Collection) -> None:
         self._collection: pymongo.collection.Collection[Mapping[str, dict[str, Any]]] = collection
         self.find_one = asyncify(collection.find_one)
         self.update_one = asyncify(collection.update_one)
@@ -69,12 +77,15 @@ class AsyncMongoMockDatabase:
         self._db: pymongo.database.Database[Mapping[str, dict[str, Any]]] = db
 
     def __getitem__(self, name: str) -> AsyncMongoMockCollection:
+        """Return collection with name."""
         return AsyncMongoMockCollection(self._db[name])
 
     def list_collection_names(self) -> types.CoroutineType[Any, Any, list[str]]:
+        """Return all collection names."""
         return asyncify(self._db.list_collection_names)()
 
     def drop_collection(self, name: str) -> types.CoroutineType[Any, Any, None]:
+        """Drop collection with name."""
         return asyncify(self._db.drop_collection)(name)
 
 
@@ -85,12 +96,15 @@ class AsyncMongoMockClient:
         self._sync_client: mongomock.MongoClient[Mapping[str, dict[str, Any]]] = mongomock.MongoClient()
 
     def __getitem__(self, name: str) -> AsyncMongoMockDatabase:
+        """Return collection with name."""
         return AsyncMongoMockDatabase(self._sync_client[name])
 
     async def __aenter__(self) -> Self:
+        """Async enter."""
         return self
 
-    async def __aexit__(self, exc_type, exc, tb) -> types.NoneType:  # type: ignore
+    async def __aexit__(self, exc_type, exc, tb) -> types.NoneType:  # type: ignore #noqa: ANN001
+        """Async exit."""
         await self.close()
 
     async def close(self) -> None:
@@ -99,7 +113,10 @@ class AsyncMongoMockClient:
 
 @pytest_asyncio.fixture(
     name="db",
-    params=[MongoDBDatabase(mongodb_client=AsyncMongoMockClient(), name="test_db"), DictDatabase()],  # type: ignore
+    params=[
+        MongoDBDatabase(supported_types=[User, Administrator], mongodb_client=AsyncMongoMockClient(), name="test_db"),  # type: ignore
+        DictDatabase(supported_types=[User, Administrator]),
+    ],  # type: ignore
 )
 async def db_fixture(request: pytest.FixtureRequest) -> AsyncGenerator[MongoDBDatabase, None]:
     """Async-compatible mongomock database for PyMongo asyncio tests."""

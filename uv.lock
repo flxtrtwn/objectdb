@@ -299,13 +299,14 @@ wheels = [
 
 [[package]]
 name = "objectdb"
-version = "0.17.0"
+version = "0.20.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
     { name = "pydantic" },
     { name = "pydantic-core" },
     { name = "pymongo" },
+    { name = "pytest-asyncio" },
 ]
 
 [package.dev-dependencies]
@@ -327,6 +328,7 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-core", specifier = ">=2.0" },
     { name = "pymongo", specifier = ">=4.15.2" },
+    { name = "pytest-asyncio", specifier = ">=1.2.0" },
 ]
 
 [package.metadata.requires-dev]

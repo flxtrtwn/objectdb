@@ -1,21 +1,28 @@
 """MongoDB Database implementation."""
 
-from typing import Any, Mapping, Optional, Type
+from __future__ import annotations
 
-from pymongo import AsyncMongoClient
-from pymongo.asynchronous.database import AsyncDatabase
+from typing import TYPE_CHECKING, Any
 
 from objectdb.database import Database, DatabaseItem, PydanticObjectId, T, UnknownEntityError
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from pymongo import AsyncMongoClient
+    from pymongo.asynchronous.database import AsyncDatabase
 
 
 class MongoDBDatabase(Database):
     """MongoDB database implementation."""
 
-    def __init__(self, mongodb_client: AsyncMongoClient, name: str) -> None:
+    def __init__(self, supported_types: list[type[DatabaseItem]], mongodb_client: AsyncMongoClient, name: str) -> None:
+        """Initialize database connection and create database."""
+        super().__init__(supported_types)
         self.connection: AsyncMongoClient[Mapping[str, dict[str, Any]]] = mongodb_client
         self.database: AsyncDatabase[Mapping[str, dict[str, Any]]] = self.connection[name]
 
-    async def upsert(self, item: DatabaseItem) -> Optional[PydanticObjectId]:
+    async def upsert(self, item: DatabaseItem) -> PydanticObjectId | None:
         """Update data."""
         item_type = type(item)
         upsert_result = await self.database[item_type.__name__].update_one(
@@ -25,24 +32,36 @@ class MongoDBDatabase(Database):
             return None
         return PydanticObjectId(upsert_result.upserted_id)
 
-    async def get(self, class_type: Type[T], identifier: PydanticObjectId) -> T:
+    async def get(self, class_type: type[T], identifier: PydanticObjectId) -> T:
+        """Get item."""
         collection = self.database[class_type.__name__]
         if result := await collection.find_one(filter={"_id": identifier}):
             return class_type.model_validate(result)
         raise UnknownEntityError(f"Not found {class_type} with identifier: {identifier}")
 
-    async def delete(self, class_type: Type[T], identifier: PydanticObjectId, cascade: bool = False) -> None:
+    async def delete(self, class_type: type[T], identifier: PydanticObjectId, *, cascade: bool = False) -> None:  # noqa: ARG002
+        """Delete item."""
         collection = self.database[class_type.__name__]
         result = await collection.delete_one(filter={"_id": identifier})
         if result.deleted_count == 0:
             raise UnknownEntityError(f"Not found {class_type} with identifier: {identifier}")
 
-    async def find(self, class_type: Type[T], **kwargs: Any) -> list[T]:
+    async def find(self, class_type: type[T], **kwargs: Any) -> list[T]:
+        """Find item."""
         collection = self.database[class_type.__name__]
-        validated_results: list[T] = []
         results = collection.find(filter=kwargs)
-        async for result in results:
-            validated_results.append(class_type.model_validate(result))
+        return [class_type.model_validate(result) async for result in results]
+
+    async def find_inherited(self, class_type: type[T], **kwargs: Any) -> list[T]:
+        """Find item among subtypes."""
+        validated_results: list[T] = []
+        for possibly_inherited_class_type in self.supported_types:
+            if issubclass(possibly_inherited_class_type, class_type):
+                collection = self.database[possibly_inherited_class_type.__name__]
+                results = collection.find(filter=kwargs)
+                validated_results.extend(
+                    [possibly_inherited_class_type.model_validate(result) async for result in results]
+                )
         return validated_results
 
     async def close(self) -> None:

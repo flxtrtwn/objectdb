@@ -1,18 +1,17 @@
 """Tests for thedatabase implementation."""
 
+import http
+
 import fastapi
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 
-from objectdb.database import Database, DatabaseItem, PydanticObjectId, UnknownEntityError, create_api_router
+from objectdb.database import Database, PydanticObjectId, UnknownEntityError
 
+from .mocks import Administrator, User
 
-class User(DatabaseItem):
-    """Test user entity."""
-
-    name: str
-    email: str
+# ruff: noqa: S101
 
 
 class TestUpdating:
@@ -80,6 +79,21 @@ class TestFinding:
         # THEN only the matching user is returned
         assert results == [user1]
 
+    @pytest.mark.asyncio
+    async def test_find_inherited_users(self, db: Database) -> None:
+        """Test finding inherited users by attribute."""
+        # GIVEN multiple users and administrators in the database
+        admin1 = Administrator(name="Peter", email="peter@example.com", needs_pw_rotation=False)
+        user1 = User(name="Eve", email="eve@example.com")
+        user2 = User(name="Frank", email="frank@example.com")
+        await db.upsert(user1)
+        await db.upsert(user2)
+        await db.upsert(admin1)
+        # WHEN finding an item of an inherited class by name
+        results = await db.find_inherited(User, name="Peter")
+        # THEN only the matching admin is returned
+        assert results == [admin1]
+
 
 class TestDeleting:
     """Tests for deleting items from the  database."""
@@ -115,7 +129,7 @@ class TestEndpoints:
     async def client(self, db: Database) -> TestClient:
         """Create a FastAPI app with the database router included."""
         app = fastapi.FastAPI()
-        app.include_router(create_api_router(db, [User]))
+        app.include_router(db.create_api_router())
         return TestClient(app)
 
     @pytest.mark.asyncio
@@ -129,7 +143,7 @@ class TestEndpoints:
         # WHEN requesting the user by ID
         response = client.get(f"/user/{user.identifier}")
         # THEN the correct user is returned
-        assert response.status_code == 200
+        assert response.status_code == http.HTTPStatus.OK
         assert user == User(**response.json())
 
     @pytest.mark.asyncio
@@ -139,7 +153,7 @@ class TestEndpoints:
         # WHEN requesting a user by a random ID
         response = client.get("/user/507f1f77bcf86cd799439011")
         # THEN a 404 error is returned
-        assert response.status_code == 404
+        assert response.status_code == http.HTTPStatus.NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_create_user(self, client: TestClient, db: Database) -> None:
@@ -149,7 +163,7 @@ class TestEndpoints:
         # WHEN creating a new user
         response = client.post("/user", json=user.model_dump())
         # THEN the response should be the new identifier and the user should be in the database
-        assert response.status_code == 200
+        assert response.status_code == http.HTTPStatus.OK
         assert PydanticObjectId(response.json()) == user.identifier
         assert user == await db.get(User, user.identifier)
 
@@ -165,7 +179,7 @@ class TestEndpoints:
         response = client.post("/user", json=user.model_dump(mode="json"))
 
         # THEN response should be null and the database should reflect changes
-        assert response.status_code == 200
+        assert response.status_code == http.HTTPStatus.OK
         assert response.text == "null"
         fetched = await db.get(User, user.identifier)
         assert fetched is not None
@@ -182,11 +196,11 @@ class TestEndpoints:
         response = client.delete(f"/user/{user.identifier}")
 
         # THEN response should be successful
-        assert response.status_code == 200
+        assert response.status_code == http.HTTPStatus.OK
 
         # AND user should not exist
         get_response = client.get(f"/user/{user.identifier}")
-        assert get_response.status_code == 404
+        assert get_response.status_code == http.HTTPStatus.NOT_FOUND
 
     @pytest.mark.asyncio
     async def test_get_all_users(self, client: TestClient, db: Database) -> None:
@@ -201,7 +215,7 @@ class TestEndpoints:
         response = client.get("/user")
 
         # THEN response should include all users
-        assert response.status_code == 200
+        assert response.status_code == http.HTTPStatus.OK
         users = [User.model_validate(user) for user in list(response.json())]
         assert user1 in users
         assert user2 in users
@@ -219,9 +233,31 @@ class TestEndpoints:
         response = client.get("/user", params={"name": "Frank"})
 
         # THEN response should include matching user
-        assert response.status_code == 200
+        assert response.status_code == http.HTTPStatus.OK
         data = response.json()
         assert len(data) == 1
         found_user = next(iter(data))
         assert found_user["name"] == "Frank"
         assert found_user["email"] == "frank@example.com"
+
+    @pytest.mark.asyncio
+    async def test_find_inherited_users(self, client: TestClient, db: Database) -> None:
+        """Test finding inherited users by criteria."""
+        # GIVEN users in database
+        user1 = User(name="Frank", email="frank@example.com")
+        user2 = User(name="Grace", email="grace@example.com")
+        admin1 = Administrator(name="Peter", email="peter@example.com", needs_pw_rotation=True)
+        await db.upsert(user1)
+        await db.upsert(user2)
+        await db.upsert(admin1)
+
+        # WHEN searching for specific user
+        response = client.get("/user", params={"name": "Peter", "inherited": "true"})
+
+        # THEN response should include matching administrator
+        assert response.status_code == http.HTTPStatus.OK
+        data = response.json()
+        assert len(data) == 1
+        found_user = next(iter(data))
+        assert found_user["name"] == "Peter"
+        assert found_user["email"] == "peter@example.com"

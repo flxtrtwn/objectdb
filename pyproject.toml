@@ -1,6 +1,6 @@
 [project]
 name = "objectdb"
-version = "0.17.0"
+version = "0.20.0"
 description = ""
 authors = [{name = "Felix Trautwein <mail@felixtrautwein.de>"}]
 
@@ -10,6 +10,7 @@ dependencies = [
     "pydantic_core>=2.0",
     "pymongo>=4.15.2",
     "fastapi>=0.118.0",
+    "pytest-asyncio>=1.2.0",
 ]
 
 [dependency-groups]
