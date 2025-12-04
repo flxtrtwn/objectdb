@@ -114,60 +114,56 @@ class Database(ABC):
         for class_type in self.supported_types:
             cls_name = class_type.__name__.lower()
 
-            def make_get_route(cls_type: type[DatabaseItem], cls_name: str):
-                async def get_item(identifier: PydanticObjectId):
+            def make_get_route(cls_type: type[DatabaseItem], cls_name: str):  # noqa: ANN202
+                async def get_item(identifier: PydanticObjectId) -> DatabaseItem:
                     try:
                         return await self.get(cls_type, identifier)
                     except UnknownEntityError as exc:
                         raise fastapi.HTTPException(status_code=404, detail="Item not found") from exc
 
-                return get_item, {
+                return get_item, {  # type: ignore
                     "path": f"/{cls_name}/{{identifier}}",
                     "endpoint": get_item,
                     "response_model": cls_type,
                     "methods": ["GET"],
                 }
 
-            # --- POST /{cls_name}
-            def make_upsert_route(cls_type, cls_name):
+            def make_upsert_route(cls_type: type[DatabaseItem], cls_name: str):  # noqa: ANN202
                 async def upsert_item(request: fastapi.Request) -> PydanticObjectId | None:
                     data = await request.json()
                     return await self.upsert(cls_type.model_validate(data))
 
-                return upsert_item, {"path": f"/{cls_name}", "endpoint": upsert_item, "methods": ["POST"]}
+                return upsert_item, {"path": f"/{cls_name}", "endpoint": upsert_item, "methods": ["POST"]}  # type: ignore
 
-            # --- DELETE /{cls_name}/{identifier}
-            def make_delete_route(cls_type, cls_name):
+            def make_delete_route(cls_type: type[DatabaseItem], cls_name: str):  # noqa: ANN202
                 async def delete_item(identifier: str) -> None:
                     try:
                         await self.delete(cls_type, PydanticObjectId(identifier))
                     except UnknownEntityError as exc:
                         raise fastapi.HTTPException(status_code=404, detail="Item not found") from exc
 
-                return delete_item, {
+                return delete_item, {  # type: ignore
                     "path": f"/{cls_name}/{{identifier}}",
                     "endpoint": delete_item,
                     "methods": ["DELETE"],
                 }
 
-            # --- GET /{cls_name} (find)
-            def make_find_route(cls_type, cls_name):
+            def make_find_route(cls_type: type[DatabaseItem], cls_name: str):  # noqa: ANN202
                 async def find_items(request: fastapi.Request) -> list[DatabaseItem]:
                     if request.query_params.get("inherited") == "true":
                         params = {k: v for k, v in request.query_params.items() if k != "inherited"}
                         return await self.find_inherited(cls_type, **params)
                     return await self.find(cls_type, **request.query_params)
 
-                return find_items, {
+                return find_items, {  # type: ignore
                     "path": f"/{cls_name}",
                     "endpoint": find_items,
                     "response_model": list[cls_type],
                     "methods": ["GET"],
                 }
 
-            # Add all routes to the router
-            for factory in [make_get_route, make_upsert_route, make_delete_route, make_find_route]:
-                _endpoint, kwargs = factory(class_type, cls_name)
+            for factory in [make_get_route, make_upsert_route, make_delete_route, make_find_route]:  # type: ignore
+                _, kwargs = factory(class_type, cls_name)  # type: ignore
                 router.add_api_route(**kwargs)
 
         return router
