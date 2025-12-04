@@ -112,61 +112,63 @@ class Database(ABC):
         router = fastapi.APIRouter()
 
         for class_type in self.supported_types:
-            class_name = class_type.__name__.lower()
+            cls_name = class_type.__name__.lower()
 
-            def create_get_item(cls_name: str, cls_type: type[DatabaseItem]):  # noqa: ANN202
-                """Create get_item function."""
-
-                @router.get(f"/{cls_name}/{{identifier}}", response_model=cls_type)
-                async def get_item(identifier: PydanticObjectId) -> cls_type:  # type: ignore
-                    """Get a single item by ID."""
+            def make_get_route(cls_type: type[DatabaseItem], cls_name: str):
+                async def get_item(identifier: PydanticObjectId):
                     try:
                         return await self.get(cls_type, identifier)
                     except UnknownEntityError as exc:
                         raise fastapi.HTTPException(status_code=404, detail="Item not found") from exc
 
-                return get_item  # type: ignore
+                return get_item, {
+                    "path": f"/{cls_name}/{{identifier}}",
+                    "endpoint": get_item,
+                    "response_model": cls_type,
+                    "methods": ["GET"],
+                }
 
-            def create_upsert_item(cls_name: str, cls_type: type[DatabaseItem]):  # noqa: ANN202
-                """Create upsert_item function."""
-
-                @router.post(f"/{cls_name}")
+            # --- POST /{cls_name}
+            def make_upsert_route(cls_type, cls_name):
                 async def upsert_item(request: fastapi.Request) -> PydanticObjectId | None:
                     data = await request.json()
                     return await self.upsert(cls_type.model_validate(data))
 
-                return upsert_item
+                return upsert_item, {"path": f"/{cls_name}", "endpoint": upsert_item, "methods": ["POST"]}
 
-            def create_delete_item(cls_name: str, cls_type: type[DatabaseItem]):  # noqa: ANN202
-                """Create delete_item function."""
-
-                @router.delete(f"/{cls_name}/{{identifier}}")
+            # --- DELETE /{cls_name}/{identifier}
+            def make_delete_route(cls_type, cls_name):
                 async def delete_item(identifier: str) -> None:
-                    """Delete an item by ID."""
                     try:
                         await self.delete(cls_type, PydanticObjectId(identifier))
                     except UnknownEntityError as exc:
                         raise fastapi.HTTPException(status_code=404, detail="Item not found") from exc
 
-                return delete_item
+                return delete_item, {
+                    "path": f"/{cls_name}/{{identifier}}",
+                    "endpoint": delete_item,
+                    "methods": ["DELETE"],
+                }
 
-            def create_find(cls_name: str, cls_type: type[DatabaseItem]):  # noqa: ANN202
-                """Create find_item function."""
-
-                @router.get(f"/{cls_name}", response_model=list[cls_type])
-                async def find(request: fastapi.Request) -> list[DatabaseItem]:
-                    """Find items by criteria."""
+            # --- GET /{cls_name} (find)
+            def make_find_route(cls_type, cls_name):
+                async def find_items(request: fastapi.Request) -> list[DatabaseItem]:
                     if request.query_params.get("inherited") == "true":
-                        model_params = {key: value for key, value in request.query_params.items() if key != "inherited"}
-                        return await self.find_inherited(cls_type, **model_params)
+                        params = {k: v for k, v in request.query_params.items() if k != "inherited"}
+                        return await self.find_inherited(cls_type, **params)
                     return await self.find(cls_type, **request.query_params)
 
-                return find
+                return find_items, {
+                    "path": f"/{cls_name}",
+                    "endpoint": find_items,
+                    "response_model": list[cls_type],
+                    "methods": ["GET"],
+                }
 
-            create_get_item(class_name, class_type)
-            create_upsert_item(class_name, class_type)
-            create_delete_item(class_name, class_type)
-            create_find(class_name, class_type)
+            # Add all routes to the router
+            for factory in [make_get_route, make_upsert_route, make_delete_route, make_find_route]:
+                _endpoint, kwargs = factory(class_type, cls_name)
+                router.add_api_route(**kwargs)
 
         return router
 
