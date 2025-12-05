@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import operator
 from abc import ABC, abstractmethod
+from functools import reduce
 from typing import Any, TypeVar
 
 import fastapi
@@ -57,6 +59,7 @@ class DatabaseItem(ABC, pydantic.BaseModel):
     )
 
     identifier: PydanticObjectId = pydantic.Field(alias="_id", default_factory=PydanticObjectId)
+    _type: str = pydantic.PrivateAttr()
 
     def __eq__(self, other: object) -> bool:
         """Compare identifiers."""
@@ -155,10 +158,16 @@ class Database(ABC):
                         return await self.find_inherited(cls_type, **params)
                     return await self.find(cls_type, **request.query_params)
 
+                possible_response_models = [
+                    possible_subtype
+                    for possible_subtype in self.supported_types
+                    if issubclass(possible_subtype, cls_type)
+                ]
+
                 return find_items, {  # type: ignore
                     "path": f"/{cls_name}",
                     "endpoint": find_items,
-                    "response_model": list[cls_type],
+                    "response_model": list[reduce(operator.or_, possible_response_models)],
                     "methods": ["GET"],
                 }
 

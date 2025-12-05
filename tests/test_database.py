@@ -112,6 +112,21 @@ class TestDeleting:
             assert await db.get(User, identifier=user.identifier)
 
     @pytest.mark.asyncio
+    async def test_delete_inherited(self, db: Database) -> None:
+        """Test deleting an item."""
+        # GIVEN a user in the database
+        user = User(name="Charlie", email="charlie@example.com")
+        admin = Administrator(name="Dana", email="dana@example.com", needs_pw_rotation=True)
+        await db.upsert(user)
+        await db.upsert(admin)
+        assert await db.get(Administrator, identifier=admin.identifier)
+        # WHEN deleting the admin as user
+        await db.delete(User, admin.identifier)
+        # THEN the admin can no longer be retrieved
+        with pytest.raises(UnknownEntityError):
+            assert await db.get(Administrator, identifier=admin.identifier)
+
+    @pytest.mark.asyncio
     async def test_delete_unknown(self, db: Database) -> None:
         """Test deleting an unknown item raises an error."""
         # GIVEN a user that does not exist in the database
@@ -261,3 +276,23 @@ class TestEndpoints:
         found_user = next(iter(data))
         assert found_user["name"] == "Peter"
         assert found_user["email"] == "peter@example.com"
+        assert found_user["needs_pw_rotation"] is True
+
+    @pytest.mark.asyncio
+    async def test_delete_inherited_users(self, client: TestClient, db: Database) -> None:
+        """Test deleting inherited users."""
+        # GIVEN users in database
+        user1 = User(name="Frank", email="frank@example.com")
+        user2 = User(name="Grace", email="grace@example.com")
+        admin1 = Administrator(name="Peter", email="peter@example.com", needs_pw_rotation=True)
+        await db.upsert(user1)
+        await db.upsert(user2)
+        await db.upsert(admin1)
+
+        # WHEN deleting an admin via the user endpoint
+        response = client.delete(f"/user/{admin1.identifier}")
+
+        # THEN admin should be deleted
+        assert response.status_code == http.HTTPStatus.OK
+        get_response = client.get(f"/user/{admin1.identifier}")
+        assert get_response.status_code == http.HTTPStatus.NOT_FOUND

@@ -44,6 +44,12 @@ class MongoDBDatabase(Database):
         collection = self.database[class_type.__name__]
         result = await collection.delete_one(filter={"_id": identifier})
         if result.deleted_count == 0:
+            for possible_subtype in self.supported_types:
+                if issubclass(possible_subtype, class_type):
+                    collection = self.database[possible_subtype.__name__]
+                    result = await collection.delete_one(filter={"_id": identifier})
+                    if result.deleted_count != 0:
+                        return
             raise UnknownEntityError(f"Not found {class_type} with identifier: {identifier}")
 
     async def find(self, class_type: type[T], **kwargs: Any) -> list[T]:
@@ -55,13 +61,13 @@ class MongoDBDatabase(Database):
     async def find_inherited(self, class_type: type[T], **kwargs: Any) -> list[T]:
         """Find item among subtypes."""
         validated_results: list[T] = []
-        for possibly_inherited_class_type in self.supported_types:
-            if issubclass(possibly_inherited_class_type, class_type):
-                collection = self.database[possibly_inherited_class_type.__name__]
+        for possible_subtype in self.supported_types:
+            if issubclass(possible_subtype, class_type):
+                collection = self.database[possible_subtype.__name__]
                 results = collection.find(filter=kwargs)
-                validated_results.extend(
-                    [possibly_inherited_class_type.model_validate(result) async for result in results]
-                )
+                async for result in results:
+                    result["_type"] = possible_subtype.__name__  # type: ignore
+                    validated_results.append(possible_subtype.model_validate(result))
         return validated_results
 
     async def close(self) -> None:

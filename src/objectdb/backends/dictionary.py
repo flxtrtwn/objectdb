@@ -39,6 +39,10 @@ class DictDatabase(Database):
         try:
             del self.data[class_type][identifier]
         except KeyError as exc:
+            for possible_subtype in self.supported_types:
+                if issubclass(possible_subtype, class_type) and identifier in self.data.get(possible_subtype, {}):
+                    del self.data[possible_subtype][identifier]
+                    return
             raise UnknownEntityError(f"Unknown identifier: {identifier}") from exc
         if cascade:
             for db in self.supported_types:
