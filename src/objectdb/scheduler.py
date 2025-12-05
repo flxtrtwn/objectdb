@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from abc import ABC, abstractmethod
 from datetime import datetime
 from enum import Enum
 from zoneinfo import ZoneInfo
@@ -28,7 +27,7 @@ class Frequency(str, Enum):
         return self._value_  # pylint: disable=E1101
 
 
-class Task(objectdb.database.DatabaseItem, ABC):
+class Task(objectdb.database.DatabaseItem):
     """Database task item with information about its next execution."""
 
     frequency: Frequency
@@ -43,6 +42,5 @@ class Task(objectdb.database.DatabaseItem, ABC):
             return value.replace(tzinfo=ZoneInfo("UTC"))
         return value
 
-    @abstractmethod
     async def process(self) -> None:
         """Process task."""
