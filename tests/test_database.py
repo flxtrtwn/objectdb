@@ -277,6 +277,7 @@ class TestEndpoints:
         assert found_user["name"] == "Peter"
         assert found_user["email"] == "peter@example.com"
         assert found_user["needs_pw_rotation"] is True
+        assert found_user["_type"] == "Administrator"
 
     @pytest.mark.asyncio
     async def test_delete_inherited_users(self, client: TestClient, db: Database) -> None:

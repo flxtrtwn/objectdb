@@ -59,7 +59,12 @@ class DatabaseItem(ABC, pydantic.BaseModel):
     )
 
     identifier: PydanticObjectId = pydantic.Field(alias="_id", default_factory=PydanticObjectId)
-    _type: str = pydantic.PrivateAttr()
+    type: str = pydantic.Field(init=False, alias="_type", default_factory=lambda: "DatabaseItem")
+
+    def model_post_init(self, _) -> None:  # pylint: disable=arguments-differ #noqa: ANN001
+        """Set _type after initialization."""
+        # Automatically assign class name
+        object.__setattr__(self, "type", self.__class__.__name__)
 
     def __eq__(self, other: object) -> bool:
         """Compare identifiers."""

@@ -65,9 +65,7 @@ class MongoDBDatabase(Database):
             if issubclass(possible_subtype, class_type):
                 collection = self.database[possible_subtype.__name__]
                 results = collection.find(filter=kwargs)
-                async for result in results:
-                    result["_type"] = possible_subtype.__name__  # type: ignore
-                    validated_results.append(possible_subtype.model_validate(result))
+                validated_results.extend([possible_subtype.model_validate(result) async for result in results])
         return validated_results
 
     async def close(self) -> None:
