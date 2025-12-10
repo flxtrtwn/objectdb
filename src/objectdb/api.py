@@ -7,7 +7,7 @@ from typing import Any, TypeVar
 
 import httpx
 
-from objectdb.database import DatabaseItem, UnknownEntityError
+from objectdb.database import DatabaseItem, PydanticObjectId, UnknownEntityError
 
 TIMEOUT = 5
 
@@ -20,7 +20,7 @@ class DBConnection:
     def __init__(self, endpoint: str) -> None:
         self.endpoint = endpoint
 
-    async def get(self, model: type[T], identifier: str) -> T:
+    async def get(self, model: type[T], identifier: PydanticObjectId | str) -> T:
         """Retrieve entity."""
         async with httpx.AsyncClient() as client:
             try:
