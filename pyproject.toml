@@ -1,7 +1,7 @@
 [project]
 name = "objectdb"
-version = "0.25.0"
-description = ""
+version = "1.0.0"
+description = "Object-oriented database layer."
 authors = [{name = "Felix Trautwein <mail@felixtrautwein.de>"}]
 
 
@@ -11,6 +11,11 @@ dependencies = [
     "pymongo>=4.15.2",
     "fastapi>=0.118.0",
     "pytest-asyncio>=1.2.0",
+    "httpx>=0.28.1",
+    "boto3>=1.41.3",
+    "types-boto3[essential]>=1.41.3",
+    "pillow>=11.3.0",
+    "openai>=2.12.0",
 ]
 
 [dependency-groups]
@@ -37,7 +42,7 @@ unsafe-fixes = true
 format.skip-magic-trailing-comma = true
 lint.isort.combine-as-imports = true
 lint.select=["ALL"]
-lint.ignore=["PGH003", "ANN401", "COM812", "TRY003", "EM101", "D107", "EM102"]
+lint.ignore=["PGH003", "ANN401", "COM812", "TRY003", "EM101", "D107", "EM102", "TC001", "TC002", "TC003"]
 
 [tool.pylint]
 max-line-length = 120

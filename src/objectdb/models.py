@@ -32,6 +32,9 @@ class Customer(DatabaseItem):
     type: str
     name: str
     timezone: ZoneInfo = ZoneInfo("UTC")
+    paid: bool = False
+    stripe_id: str | None = None
+    stripe_subscription_id: str | None = None
 
     @pydantic.field_serializer("timezone")
     def encode_timezone(self, tz: ZoneInfo) -> str:

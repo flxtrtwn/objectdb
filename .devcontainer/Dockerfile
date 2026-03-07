@@ -15,13 +15,14 @@ RUN echo $TZ > /etc/timezone \
 RUN apt-get update && apt-get install -y --no-install-recommends \
 #     apt-utils \
 #     bash \
-#     ca-certificates \
+     apt-transport-https \
+     ca-certificates \
      curl \
 #     file \
 #     gettext \
      git \
 #     git-lfs \
-#     gnupg \
+     gnupg \
 #     less \
 #     lsb-release \
 #     locales \
