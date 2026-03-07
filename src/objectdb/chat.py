@@ -8,8 +8,8 @@ from typing import Literal, TypedDict
 
 from openai import AsyncOpenAI
 
-from objectdb_business import blob_storage
-from objectdb_business.agent import Agent
+from objectdb import blob_storage
+from objectdb.agent import Agent
 
 logger = logging.getLogger(__name__)
 
